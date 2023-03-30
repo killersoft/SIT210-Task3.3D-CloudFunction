@@ -1,0 +1,166 @@
+// This #include statement was automatically added by the Particle IDE.
+#include <MQTT.h>
+#include "application.h"
+
+// Include guard to prevent multiple definitions of the HC_SR04 class
+#ifndef _HC_SR04
+#define _HC_SR04
+#pragma once
+
+SerialLogHandler logHandler; // This uses the USB serial port for debugging logs
+// Class to control an HC-SR04 ultrasonic distance sensor
+class HC_SR04
+{
+public: 
+  HC_SR04(int trigPin, int echoPin); // Constructor that takes only trigger pin and echo pin
+  HC_SR04(int trigPin, int echoPin, double minCM, double maxCM); // Constructor that takes trigger pin, echo pin, min and max distances
+  double getDistanceCM();  // Function to measure and return distance in centimeters
+
+private:
+  int _echoPin;  // Echo pin of the sensor
+  int _trigPin;  // Trigger pin of the sensor
+  double _minCM;  // Minimum distance in centimeters
+  double _maxCM;  // Maximum distance in centimeters
+  
+  void sendTriggerPulse(int pin);  // Function to send a trigger pulse to the sensor
+  void waitForEcho(int pin, int value, long timeout);  // Function to wait for and measure the echo pulse
+};
+ 
+#endif  
+
+// Constructor that takes only trigger pin and echo pin
+HC_SR04::HC_SR04(int trigPin, int echoPin){
+  _minCM = 10.0;  // Default minimum distance in centimeters
+  _maxCM = 250.0;  // Default maximum distance in centimeters
+  _trigPin = trigPin;  // Store trigger pin
+  _echoPin = echoPin;  // Store echo pin
+  pinMode(_trigPin, OUTPUT);  // Set trigger pin as output
+  pinMode(_echoPin, INPUT);  // Set echo pin as input
+}
+
+// Constructor that takes trigger pin, echo pin, min and max distances
+HC_SR04::HC_SR04(int trigPin, int echoPin, double minCM, double maxCM){
+  _minCM = minCM;  // Minimum distance in centimeters
+  _maxCM = maxCM;  // Maximum distance in centimeters
+  _trigPin = trigPin;  // Store trigger pin
+  _echoPin = echoPin;  // Store echo pin
+  pinMode(_trigPin, OUTPUT);  // Set trigger pin as output
+  pinMode(_echoPin, INPUT);  // Set echo pin as input
+}
+
+double HC_SR04::getDistanceCM(){
+  sendTriggerPulse(_trigPin);  // Send a trigger pulse to the sensor
+  waitForEcho(_echoPin, HIGH, 100);  // Wait for the echo pulse to start
+  long startTime = micros();  // Record the start time of the echo pulse
+  waitForEcho(_echoPin, LOW, 100);  // Wait for the echo pulse to end
+  long endTime = micros();  // Record the end time of the echo pulse
+  long duration = endTime - startTime;  // Calculate the duration of the echo pulse
+  double distance = duration / 29.0 / 2.0;  // Calculate the distance in centimeters
+  if (distance < _minCM || distance > _maxCM){
+   return -1;  // Return -1 if the distance is outside the valid range
+  }
+  return distance; // Otherwise, return the calculated distance in centimeters
+}
+
+
+void HC_SR04::sendTriggerPulse(int pin){
+    digitalWrite(pin, HIGH);  // set the trigger pin to high to send the pulse
+    delayMicroseconds(10);    // wait for a short period of time
+    digitalWrite(pin, LOW);   // set the trigger pin to low to end the pulse
+}
+
+void HC_SR04::waitForEcho(int pin, int value, long timeout){
+    long giveupTime = millis() + timeout; // set the time when to give up waiting
+    while (digitalRead(pin) != value && millis() < giveupTime) {} // wait for the pin to read the given value or until timeout
+}
+
+
+String wavemessage =  String("Greg McLennan-Wave"); // create a string for the wave message
+double cm = 0.0; // initialize the distance in cm to 0
+double inches = 0.0; // initialize the distance in inches to 0
+
+int trigPin = D4; // set the trigger pin to D4
+int echoPin = D5; // set the echo pin to D5
+int colorloop = 1; // initialize the color loop counter to 1
+
+
+void blinky(){
+ for (int i=0; i<3 ; i++){   // Blink 3 times as per requirement
+    RGB.brightness(0);  // Turn the LED off
+    delay(125); // Wait for 125 ms
+    RGB.brightness(200); // Turn the LED on 200 of 255 level of brightness !
+    delay(125); // Wait for 125 ms
+ }
+ 
+}
+
+void callback(char* topic, byte* payload, unsigned int length) {
+
+  if (strncmp((const char*)payload, wavemessage, length) == 0) {  // Check if the message is the desired "wave" message
+    //Do Nothing
+    } else {
+    // Convert the payload to a string and print the message to the serial port    
+			String topicStr = topic; 
+			payload[length] = 0;
+			String recv_payload = String(( char *) payload);
+			Serial.println( "mqtt_callback - message arrived - topic [" + topicStr + "] payload text [" + recv_payload + "]" );
+
+            switch (colorloop) {
+                case 1:
+                RGB.color(255, 0, 0); // Red
+                blinky(); // Blink the LED function
+                break;
+            case 2:
+                RGB.color(0, 255, 0); // Green 
+                blinky();
+                break;
+            case 3:
+                RGB.color(0, 0, 255); // Blue
+                blinky();
+                break;
+            default:
+                RGB.color(255, 255, 255); //White
+                blinky();
+            break;
+
+        }
+        colorloop++;
+        if (colorloop>3){
+            colorloop =1;
+        }
+    }
+}
+
+
+// Instantiate an HC-SR04 sensor object and an MQTT client object
+HC_SR04 rangefinder = HC_SR04(trigPin, echoPin); 
+
+void callback(char* topic, byte* payload, unsigned int length);
+MQTT client("broker.emqx.io", 1883, callback);
+
+
+void setup() 
+{
+    Serial.begin(9600); // Start the serial port communication
+    RGB.control(true); // Enable control of the LED
+    Spark.variable("cm", &cm, DOUBLE); // Declare a variable for the distance measurement in centimeters
+    // Connect to the MQTT broker and subscribe to the "SIT210/wave" topic
+    client.connect("s300272193@deakin.edu.au" + String(Time.now()));
+    if (client.isConnected()) {
+        client.publish("SIT210/wave","s300272193_ONLINE"); // Publish a message to indicate that the device is online
+        client.subscribe("SIT210/wave");
+    }
+}
+
+void loop() 
+{
+   // Detect a wave and publish a message to the "SIT210/wave" topic
+    cm = rangefinder.getDistanceCM(); // Measure the distance in centimeters
+    if (cm <30 && cm >10){
+      client.publish("SIT210/wave",wavemessage); // Publish the wave message to the MQTT broker 
+    } 
+    
+    delay(500); // Wait 
+    if (client.isConnected())
+    client.loop(); // Maintain the MQTT connection
+}
