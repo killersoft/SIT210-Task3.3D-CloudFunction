@@ -75,7 +75,7 @@ void HC_SR04::waitForEcho(int pin, int value, long timeout){
 }
 
 
-String wavemessage =  String("Greg McLennan-Wave"); // create a string for the wave message
+//String wavemessage =  String("Greg McLennan-Wave"); // create a string for the wave message
 
 double cm = 0.0; // initialize the distance in cm to 0
 double inches = 0.0; // initialize the distance in inches to 0
@@ -153,7 +153,7 @@ void loop()
         client.publish("SIT210/wave",pat); // Publish the wave message to the MQTT broker 
     }else{
   
-        if (cm <30 && cm >10){ // If object not getting closer, then it must be a wave
+        if (avcm[0] <30 && avcm[0] >10){ // If object not getting closer, then it must be a wave
             client.publish("SIT210/wave",wave); 
          }
     }
