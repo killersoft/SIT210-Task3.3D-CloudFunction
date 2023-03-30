@@ -133,28 +133,27 @@ void setup()
     }
 }
 
-int avcm[5];
-int i=0;
+int avcm[6]; //array to hold distances
 void loop() 
 {
 
-    cm = int(rangefinder.getDistanceCM()); // Measure the distance in centimeters
+    avcm[0] = int(rangefinder.getDistanceCM()); // Measure the distance in centimeters
     delay(100);
-    avcm[0] = int(rangefinder.getDistanceCM());
+    avcm[1] = int(rangefinder.getDistanceCM()); // Measure the distance in centimeters
     delay(100);
-    avcm[1] = int(rangefinder.getDistanceCM());
+    avcm[2] = int(rangefinder.getDistanceCM()); // Measure the distance in centimeters
     delay(100);
-    avcm[2] = int(rangefinder.getDistanceCM());
+    avcm[3] = int(rangefinder.getDistanceCM()); // Measure the distance in centimeters
     delay(100);
-    avcm[3] = int(rangefinder.getDistanceCM());
+    avcm[4] = int(rangefinder.getDistanceCM()); // Measure the distance in centimeters
     delay(100);
-    avcm[4] = int(rangefinder.getDistanceCM());
+    avcm[5] = int(rangefinder.getDistanceCM()); // Measure the distance in centimeters
 
-    if(avcm[0]<cm && avcm[1]<avcm[0] && avcm[2] < avcm[1] && avcm[3] < avcm[2] && avcm[4] < avcm[3] ){
+    if(avcm[1]<avcm[0] && avcm[2]<avcm[1] && avcm[3] < avcm[2] && avcm[4] < avcm[3] && avcm[5] < avcm[4] ){ // Test if object like a wave getting closer like a pat
         client.publish("SIT210/wave",pat); // Publish the wave message to the MQTT broker 
     }else{
   
-        if (cm <30 && cm >10){
+        if (cm <30 && cm >10){ // If object not getting closer, then it must be a wave
             client.publish("SIT210/wave",wave); 
          }
     }
